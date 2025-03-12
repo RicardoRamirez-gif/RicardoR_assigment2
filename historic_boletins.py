@@ -40,7 +40,7 @@ for item in soup.select("div[data-date] a"):
     if "?date=" in href and "&edition=" in href:
         date = href.split("?date=")[-1].split("&")[0]  # Extract date
         edition = href.split("&edition=")[-1]  # Extract edition number
-        link = f"https://www.boletinoficialdemineria.cl{href}"  # Construct full link
+        link = f"https://www.boletinoficialdemineria.cl/?date=11-03-2025&edition=44096{href}"  # Construct full link
 
         boletins.append({"Date": date, "Boletin Number": edition, "PDF Link": link})
 
