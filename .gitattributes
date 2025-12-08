@@ -6,3 +6,5 @@
 *csv filter=lfs diff=lfs merge=lfs -text
 *.mp4 filter=lfs diff=lfs merge=lfs -text
 psd filter=lfs diff=lfs merge=lfs -text
+# Video de presentación (Ignorar para estadísticas y marcar como binario grande)
+docs/ASSIGNMENT2_VIDEO.avi linguist-vendored
