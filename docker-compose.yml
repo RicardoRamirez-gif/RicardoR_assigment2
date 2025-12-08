@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:15-3.3 # Image with PostGIS extension pre-installed
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Volume for data persistence
+
+  # Optional: A service to run your Python ETL script 
+  etl_app:
+    build: .
+    command: python src/boletin_records.py
+    environment:
+      DB_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+    depends_on:
+      - db
+    volumes:
+      - .:/app # Maps local directory to the container 
+
+volumes:
+  postgres_data:

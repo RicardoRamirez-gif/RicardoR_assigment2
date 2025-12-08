@@ -1,0 +1,4 @@
+# (Ya lo habías subido, pero solo para confirmar)
+echo ".venv/" >> .gitignore
+echo "data/*.csv" >> .gitignore
+echo "data/*.xlsx" >> .gitignore

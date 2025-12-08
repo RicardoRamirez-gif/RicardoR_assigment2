@@ -1,144 +1,117 @@
 import streamlit as st
 import pandas as pd
+import os
+import io
 
-# Load the output_list CSV file (it contains the list of editions scraped)
-output_list_path = r"C:\Users\Ricardo\Desktop\DOUGLAS COLLEGE COURSES\5_WINTER 2025\CSIS-4260-002--Spl Topics in Data Analytics\RicardoR_assigment2\output_list.csv"
-output_list_df = pd.read_csv(output_list_path)
+# --- PORTABLE DATA PATHS ---
+# Note: Paths are relative, assuming data files are in the 'data' folder 
+# and this app.py is in the 'src' folder (../data/filename.csv)
 
-# Strip any leading or trailing spaces from column names
-output_list_df.columns = output_list_df.columns.str.strip()
+OUTPUT_LIST_PATH = os.path.join("..", "data", "output_list.csv")
+OUTPUT_CSV_PATH = os.path.join("..", "data", "output_pdf_data.csv")
+SENTIMENT_DATA_PATH = os.path.join("..", "data", "detailed_analysis_with_concession_sentiment.csv")
 
-# Load the data from the CSV
-output_csv_path = r"C:\Users\Ricardo\Desktop\DOUGLAS COLLEGE COURSES\5_WINTER 2025\CSIS-4260-002--Spl Topics in Data Analytics\RicardoR_assigment2\output_pdf_data.csv"
-df = pd.read_csv(output_csv_path)
+# --- DATA LOADING FUNCTIONS ---
+# Load data, handling potential file errors gracefully
+@st.cache_data
+def load_data(path):
+    try:
+        # For professional deployment, this would be pd.read_sql
+        df = pd.read_csv(path)
+        df.columns = df.columns.str.strip()
+        return df
+    except FileNotFoundError:
+        st.error(f"Error: Data file not found at {path}. Please run the ETL pipeline.")
+        return pd.DataFrame()
 
-# Strip any leading or trailing spaces from column names
-df.columns = df.columns.str.strip()
+output_list_df = load_data(OUTPUT_LIST_PATH)
+df = load_data(OUTPUT_CSV_PATH)
+sentiment_df = load_data(SENTIMENT_DATA_PATH)
 
-# Title of the webpage
-st.markdown("<h1 style='text-align: center; color: black;'>Assignment 2 - Scraping Work of Mining Concessions of Chile</h1>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center; color: black;'>Ricardo Ramirez, Student Id: 300381941</h2>", unsafe_allow_html=True)
+# --- WEB APP STRUCTURE ---
+
+# Title of the webpage (Professional Focus)
+st.markdown("<h1 style='text-align: center;'>Chilean Mining Concession Data Intelligence ⛏️</h1>", unsafe_allow_html=True)
+st.markdown("<h4 style='text-align: center;'>Automated ETL and Text Analytics Platform</h4>", unsafe_allow_html=True) # Removed student ID
 
 # Link to the official Chilean Mining Bulletin webpage
-st.markdown("<p style='text-align: center; color: black;'>Official Mining Bulletin of Chile: <a href='https://www.diariooficial.interior.gob.cl/publicaciones/' target='_blank'>www.diariooficial.interior.gob.cl</a></p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Data Source: <a href='https://www.diariooficial.interior.gob.cl/publicaciones/' target='_blank'>Official Mining Bulletin of Chile</a></p>", unsafe_allow_html=True)
 
 # Sidebar Navigation
-st.sidebar.title('Navigation')
-selection = st.sidebar.radio("Go to", ["Home", "All Data", "Sentimental Analysis", "Edition Scraption"])
+st.sidebar.title('Pipeline Navigation')
+selection = st.sidebar.radio("Go to", ["Home", "Extracted Data", "Text Analysis Metrics", "Edition Tracking"])
 
 # Main content based on navigation
 if selection == "Home":
     st.write(""" 
-    ## Home
-    This app demonstrates the scraping of mining concession data from the Chilean Official Mining Bulletin (Boletín Oficial de Minería).
-    The data includes mining concession names, company names, CVE numbers, regions, provinces, and concession types for mining companies in Chile.
-    It also includes sentiment analysis of the available data, allowing us to evaluate the public sentiment related to these concessions.
+    ## Data Pipeline Overview
+    This application demonstrates a **full-cycle Data Engineering and NLP pipeline** designed to convert complex, non-structured legal documents into actionable business intelligence.
 
     ### Project Summary:
-    - **PDF Scraping**: Scraped mining concession data (names, companies, CVE numbers, regions, provinces, and concession types) from the Chilean Official Mining Bulletin PDFs.
-    - **Sentiment Analysis**: Applied sentiment analysis to evaluate the public sentiment on concession names and regions using Hugging Face's multilingual model.
-    - **Web Scraping**: Gathered historical editions of the mining bulletin using **Selenium** and **BeautifulSoup** to track past publications.
-    - **Data Visualization**: The extracted data is displayed in an interactive web app using **Streamlit** for users to explore mining concession information.
-
-    **Key Features:**
-    - Scraping of detailed data for mining concessions.
-    - Sentiment analysis to understand public opinions related to concessions.
-    - Historical data on past editions of the Chilean mining bulletin.
+    - **PDF Scraping & Parsing**: Automated extraction of critical data (names, regions, CVE numbers) from dynamic Chilean Official Mining Bulletin PDFs.
+    - **Web Scraping**: Uses **Selenium** and **BeautifulSoup** to gather and track historical editions of the bulletin, ensuring data integrity.
+    - **Text Analysis & Metrics**: Applied **Hugging Face's multilingual model** to derive **Sentiment Scores** and evaluate public perception on concession names and regions.
+    - **Data Visualization**: Interactive data display using **Streamlit**, proving the end-to-end functionality of the platform.
 
     **Libraries Used**:
-    - **Requests**, **pdfplumber**, **ftfy**, **BeautifulSoup**, **Selenium**, **transformers**, **Streamlit**, **Pandas**
-
-    The dataset contains detailed information about mining concessions in Chile, and the sentiment analysis evaluates the public sentiment toward these concessions.
+    - **Selenium**, **BeautifulSoup**, **Pandas**, **pdfplumber**, **requests**, **Streamlit**, **transformers** (for NLP)
     """)
 
-elif selection == "All Data":
-    # Modify the title to indicate it's for a specific edition
-    st.write("### Sample of Extracted Data - August 1st, 2017 Edition")
+elif selection == "Extracted Data":
+    st.write("### Extracted Data Sample")
+    st.write("A sample of the structured data generated by the ETL pipeline.")
 
-    st.write(df)
-
-elif selection == "Sentimental Analysis":
-    # Display text explaining sentiment analysis
-    st.write(""" 
-    ## Sentimental Analysis
-    This section would display sentiment analysis results, but the analysis might be limited for mining data due to the nature of the data (i.e., no social media opinions).
-    
-    ### Part 2: Text Analysis
-    In this part, you're required to apply at least two algorithms or APIs to analyze the text data you collected in **Part 1**. Specifically, you're applying **sentiment analysis** to evaluate the public sentiment of mining concessions.
-
-    Here's how you've addressed **Part 2**:
-    - **Sentiment Analysis**: You used **Hugging Face's multilingual BERT model** for sentiment analysis on the text data of mining concessions. Sentiment analysis is appropriate for your use case as you're trying to evaluate the public sentiment related to the mining concessions.
-    - **Importance Score**: You've assigned an importance score to each mining concession based on sentiment. The scores are mapped to values like -2, -1, 0, 1, and 2, which reflect negative, neutral, and positive sentiments. This gives a clear understanding of how each concession is perceived.
-    - **Results in Tabular Form**: The results are displayed in a table, presenting **Concession Name**, **Region Sentiment**, **Concession Sentiment**, and the **Overall Sentiment Score**.
-
-    Additionally, you could apply **keyword extraction**, **topic modeling**, or any other algorithm to analyze the content further. However, sentiment analysis alone is already a solid solution to gauge how concessions are perceived by the public.
-    """)
-
-    # Read the sentiment analysis CSV file
-    sentiment_data_path = r"C:\Users\Ricardo\Desktop\DOUGLAS COLLEGE COURSES\5_WINTER 2025\CSIS-4260-002--Spl Topics in Data Analytics\RicardoR_assigment2\detailed_analysis_with_concession_sentiment.csv"
-    sentiment_df = pd.read_csv(sentiment_data_path)
-
-    # Strip any leading or trailing spaces from column names
-    sentiment_df.columns = sentiment_df.columns.str.strip()
-
-    # Display the DataFrame dynamically
-    st.write("### Sentiment Analysis Results")
-    
-    # Show the dataframe as a dynamic table
-    st.dataframe(sentiment_df)  # This will display the table and allow sorting/filtering in the UI
-
-elif selection == "Edition Scraption":
-    st.write("### Edition Scraption Overview")
-    st.write(""" 
-    Here we can showcase how the scraping process works for specific editions of the Chilean Official Mining Bulletin (Boletín Oficial de Minería).
-    Each edition contains mining concession data, which includes important information such as:
-    - Concession Name
-    - Company Name
-    - CVE Number (Unique ID for each concession)
-    - Region
-    - Province
-    - Concession Type
-    
-    The editions are scraped from the official website and include concessions for mining companies in Chile.
-    """)
-
-    # Display all the editions that were scraped
-    st.write("### List of Editions Scraped")
-    st.dataframe(output_list_df)
-
-    # Provide a more detailed explanation of the data
-    st.write(""" 
-    The output list contains all the editions that have been successfully scraped. Each entry represents a particular mining concession record within the given edition of the bulletin. 
-    By scraping this data, we have collected a wealth of information on various mining companies, the regions they operate in, and the type of concessions they hold.
-    """)
-
-    st.write("### Example of Scraped Data: (Concessions for Each Edition)")
-    # Displaying a sample of data for the first edition in the list (if necessary)
-    first_edition = output_list_df.iloc[0]
-    st.write(f"Edition {first_edition['Edition']} - Date: {first_edition['year']}-{first_edition['month']}-{first_edition['day']}")
-    
-    # Add a check for 'PDF Link' column and display it only if it exists
-    if 'PDF Link' in first_edition:
-        st.write("#### PDF Link:", first_edition["PDF Link"])
+    if not df.empty:
+        st.dataframe(df)
     else:
-        st.write("⚠️ 'PDF Link' column not found. Please check the column name.")
+        st.warning("Data not available. Please ensure the extraction pipeline has been run successfully.")
 
-    # Provide an explanation of the scraping process:
+elif selection == "Text Analysis Metrics":
     st.write(""" 
-    The scraping process involves collecting PDF files from the Chilean Official Mining Bulletin. Each PDF corresponds to a particular edition that includes mining concessions.
-    The PDF files are processed to extract mining concession data, including:
-    - Company name
-    - Concession type (e.g., mining, exploration, etc.)
-    - Concession number (CVE Number)
-    - Region and province where the concession is located
-    
-    This data is then stored in a CSV format, allowing us to perform further analysis and present it visually within this app.
+    ## Text Analysis & Sentiment Metrics
+    This section showcases the **transformation layer (T)** of the ETL, where unstructured text is converted into quantifiable metrics.
+
+    ### Metric Generation:
+    - **Sentiment Analysis**: Applied **Hugging Face's multilingual BERT model** to assign sentiment (positive, neutral, negative) to concession names and regions.
+    - **Importance Scoring**: A structured score is mapped (-2 to +2), providing a clear, quantitative gauge of public perception for each mining asset.
+    - **Output**: The results are presented in a clean, query-ready format for further spatial or economic analysis.
     """)
 
-    # Add a section for a downloadable CSV (if needed)
-    st.download_button(
-        label="Download Scraped Data CSV",
-        data=output_list_df.to_csv(index=False),
-        file_name='scraped_edition_list.csv',
-        mime='text/csv'
-    )
+    if not sentiment_df.empty:
+        st.write("### Sentiment Analysis Results")
+        st.dataframe(sentiment_df)
+    else:
+        st.warning("Sentiment data not available. Please check the data loading path.")
+
+elif selection == "Edition Tracking":
+    st.write("### Bulletin Edition Tracking")
+    st.write("Overview of the historical editions successfully scraped, demonstrating the stability of the Web Scraping process.")
+
+    if not output_list_df.empty:
+        st.dataframe(output_list_df)
+
+        st.write("#### Download Data Snapshot")
+        # Function to convert DataFrame to CSV for download button
+        @st.cache_data
+        def convert_df_to_csv(df_to_convert):
+            return df_to_convert.to_csv(index=False).encode('utf-8')
+
+        csv_data = convert_df_to_csv(output_list_df)
+
+        st.download_button(
+            label="Download Editions CSV",
+            data=csv_data,
+            file_name='edition_tracking_snapshot.csv',
+            mime='text/csv'
+        )
+    else:
+        st.warning("Edition tracking data not available.")
+
+# --- Future Development Note (Optional, but shows vision for SQL migration) ---
+st.sidebar.markdown(
+    """
+    ***
+    **Future State:** Data persistence will be migrated from flat files 
+    to a PostgreSQL/PostGIS database for scalable spatial querying.
+    """
+)
