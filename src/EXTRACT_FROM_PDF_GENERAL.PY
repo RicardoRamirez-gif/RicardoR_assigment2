@@ -3,13 +3,18 @@ import csv
 import requests
 import pdfplumber
 import ftfy
+import os
 from io import BytesIO
 
-# Input CSV containing the list of PDFs to process
-input_csv_path = r"C:\Users\Ricardo\Desktop\DOUGLAS COLLEGE COURSES\5_WINTER 2025\CSIS-4260-002--Spl Topics in Data Analytics\RicardoR_assigment2\output_list.csv"
+# Import the LLM utility module
+# from .llm_utils import summarize_text 
 
-# Output CSV for extracted data
-output_csv_path = r"C:\Users\Ricardo\Desktop\DOUGLAS COLLEGE COURSES\5_WINTER 2025\CSIS-4260-002--Spl Topics in Data Analytics\RicardoR_assigment2\output_pdf_data_total.csv"
+# --- PORTABLE PATHS (Assumes data is in ../data/) ---
+# Note: Input path (output_list.csv) and Output path (output_pdf_data_total.csv)
+# We use os.path.join and relative paths for robustness.
+INPUT_CSV_PATH = os.path.join("..", "data", "output_list.csv")
+OUTPUT_CSV_PATH = os.path.join("..", "data", "output_pdf_data_total.csv")
+# ----------------------------------------------------
 
 # Keywords to identify sections
 concession_types = [
@@ -22,16 +27,21 @@ region_pattern = r"([IVXLCDM]+)\s+REGIÓN\s+DE\s+([A-ZÁÉÍÓÚÑ\s]+)"
 province_pattern = r"Provincia de ([A-Za-zÁÉÍÓÚÑ\s]+)"
 mining_pattern = r"(.+?)\s*/\s*(.+?)\s*\(CVE:\s*(\d+)\)"
 
-def download_pdf(url):
+# --- PDF DOWNLOAD AND EXTRACTION LOGIC ---
+
+def download_pdf(url: str) -> BytesIO | None:
+    """Downloads PDF content from a URL and returns a BytesIO object."""
     try:
-        response = requests.get(url, timeout=10)
+        # Use a more reasonable timeout for production scenarios
+        response = requests.get(url, timeout=30) 
         response.raise_for_status()
         return BytesIO(response.content)
     except requests.exceptions.RequestException as e:
         print(f"❌ Error downloading PDF: {e}")
         return None
 
-def extract_text_from_pdf(pdf_file):
+def extract_text_from_pdf(pdf_file: BytesIO) -> str:
+    """Extracts text from a BytesIO PDF file using pdfplumber."""
     text = ""
     try:
         with pdfplumber.open(pdf_file) as pdf:
@@ -45,7 +55,10 @@ def extract_text_from_pdf(pdf_file):
         print(f"❌ Error extracting text: {e}")
         return ""
 
-def parse_pdf_text(text, source_url):
+# --- PARSING LOGIC (Remains the same, but cleaner syntax) ---
+
+def parse_pdf_text(text: str, source_url: str) -> list[list[str]]:
+    """Parses raw PDF text to extract structured mining concession data."""
     data = []
     current_region, current_province, current_type = "", "", ""
     
@@ -72,40 +85,51 @@ def parse_pdf_text(text, source_url):
             company_name = mining_match.group(2).strip()
             cve_number = mining_match.group(3).strip()
             
+            # TODO: Integrate LLM summarization here if needed: summary = summarize_text(concession_name)
+            
             data.append([concession_name, company_name, cve_number,
                          current_region, current_province, current_type, source_url])
     
     return data
 
-def read_pdf_list(csv_path):
+# --- DATA READING AND WRITING (TO BE REPLACED BY DB INGEST) ---
+
+def read_pdf_list(csv_path: str) -> list[str]:
+    """Reads the CSV index file containing PDF URLs to process."""
     pdf_list = []
     try:
         with open(csv_path, "r", encoding="utf-8") as file:
             reader = csv.DictReader(file)
             for row in reader:
+                # Reconstruct the PDF URL from structured components
                 year, month, day, edition = row["year"], row["month"], row["day"], row["Edition"]
+                # URL is hardcoded as it is a fixed domain/structure of the official bulletin
                 pdf_url = f"https://www.diariooficial.interior.gob.cl/publicaciones/{year}/{month}/{day}/sumarios/{edition}.pdf"
                 pdf_list.append(pdf_url)
     except Exception as e:
         print(f"❌ Error reading input CSV: {e}")
     return pdf_list
 
-def write_to_csv(data, output_path, append=False):
+def write_to_csv(data: list[list[str]], output_path: str, append: bool = False):
+    """Writes extracted data to CSV (THIS FUNCTION WILL BE REPLACED BY DB INGEST)."""
     headers = ["Nombre de la Concesión", "Nombre de la Empresa", "Número CVE", "Región", "Provincia", "Tipo de Concesión", "Fuente"]
     try:
-        # Open the file in append mode if `append` is True
         mode = 'a' if append else 'w'
         with open(output_path, mode, newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             if not append:
-                writer.writerow(headers)  # Write headers only once when appending
+                writer.writerow(headers) 
             writer.writerows(data)
         print(f"✅ Data saved to: {output_path}")
     except Exception as e:
         print(f"❌ Error writing CSV: {e}")
 
-# Main processing loop: Write data after each PDF
-def process_pdfs(pdf_urls, output_csv_path):
+# --- MAIN RUNNER ---
+
+def process_pdfs_pipeline(pdf_urls: list[str], output_csv_path: str):
+    """Runs the main PDF processing pipeline (Extraction -> Parsing -> Load)."""
+    write_to_csv([], output_csv_path, append=False) # Clear file with headers
+    
     for pdf_url in pdf_urls:
         print(f"📥 Processing: {pdf_url}")
         pdf_file = download_pdf(pdf_url)
@@ -114,7 +138,8 @@ def process_pdfs(pdf_urls, output_csv_path):
             if pdf_text:
                 extracted_data = parse_pdf_text(pdf_text, pdf_url)
                 if extracted_data:
-                    write_to_csv(extracted_data, output_csv_path, append=True)  # Append data after processing each PDF
+                    # NOTE: Here is where the LLM/Sentiment logic (if enabled) would run
+                    write_to_csv(extracted_data, output_csv_path, append=True) 
                 else:
                     print("⚠ No relevant data found in this PDF.")
             else:
@@ -122,7 +147,6 @@ def process_pdfs(pdf_urls, output_csv_path):
         else:
             print("⚠ Could not download the PDF.")
 
-# Run the processing function
 if __name__ == "__main__":
-    pdf_urls = read_pdf_list(input_csv_path)
-    process_pdfs(pdf_urls, output_csv_path)
+    pdf_urls = read_pdf_list(INPUT_CSV_PATH)
+    process_pdfs_pipeline(pdf_urls, OUTPUT_CSV_PATH)
